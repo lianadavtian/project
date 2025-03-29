@@ -1,89 +1,109 @@
 #include "header.hpp"
 #include "exceptions.hpp"
-#include "templ.tpp"
+#include <iomanip>
+#include <stdexcept>
 
-void CheckingAccount::deposit(double amount)
-{
-    // verifyCustomer();
-    balance_ += amount;
+CheckingAccount::CheckingAccount(double initialBalance, int accountId) 
+    : balance_(initialBalance), accountId_(accountId) {
+    if (initialBalance < 0) {
+        throw InvalidTransactionException("Initial balance cannot be negative");
+    }
 }
 
-void CheckingAccount::withdraw(double amount)
-{
-    // verifyCustomer();
-    // checkBalance();
-    if (amount > balance_)
-    {
-        throw InsufficientFundsException();
+void CheckingAccount::deposit(double amount) {
+    if (amount <= 0) {
+        throw InvalidTransactionException("Deposit amount must be positive");
+    }
+    balance_ += amount;
+    addTransaction(Transaction(getType(), amount, "Deposit"));
+}
+
+void CheckingAccount::withdraw(double amount) {
+    if (amount <= 0) {
+        throw InvalidTransactionException("Withdrawal amount must be positive");
+    }
+    if (amount > balance_) {
+        throw InsufficientFundsException("Not enough funds in checking account");
     }
     balance_ -= amount;
+    addTransaction(Transaction(getType(), amount, "Withdrawal"));
 }
 
-double CheckingAccount::getBalance() const
-{
-    // verifyCustomer();
-    // checkBalance();
-    return balance_;
-}
+double CheckingAccount::getBalance() const { return balance_; }
+int CheckingAccount::getAccountId() const { return accountId_; }
 
-void SavingsAccount::deposit(double amount)
-{
-    if (amount < 0)
-    {
-        throw InvalidTransactionException();
+SavingsAccount::SavingsAccount(double initialBalance, int accountId) 
+    : balance_(initialBalance), accountId_(accountId) {
+    if (initialBalance < MIN_BALANCE) {
+        throw InvalidTransactionException("Initial balance below minimum requirement");
     }
-    // verifyCustomer();
-    balance_ += amount;
 }
-void SavingsAccount::withdraw(double amount)
-{
-    // verifyCustomer();
-    // checkBalance();
-    if (amount - balance_ < 100)
-    {
-        throw InsufficientFundsException();
+
+void SavingsAccount::deposit(double amount) {
+    if (amount <= 0) {
+        throw InvalidTransactionException("Deposit amount must be positive");
+    }
+    balance_ += amount;
+    addTransaction(Transaction(getType(), amount, "Deposit"));
+}
+
+void SavingsAccount::withdraw(double amount) {
+    if (amount <= 0) {
+        throw InvalidTransactionException("Withdrawal amount must be positive");
+    }
+    if (balance_ - amount < MIN_BALANCE) {
+        throw InsufficientFundsException("Withdrawal would violate minimum balance");
     }
     balance_ -= amount;
-}
-double SavingsAccount::getBalance() const
-{
-    //    verifyCustomer();
-    return balance_;
+    addTransaction(Transaction(getType(), amount, "Withdrawal"));
 }
 
-Customer::Customer(const std::string &name, const std::string &email) : name_(name), email_(email) {}
-std::string Customer::getName() const
-{
-    return name_;
+double SavingsAccount::getBalance() const { return balance_; }
+int SavingsAccount::getAccountId() const { return accountId_; }
+
+Customer::Customer(const std::string& name, const std::string& email) 
+    : name_(name), email_(email) {}
+
+void Customer::addAccount(std::shared_ptr<Account> account) {
+    accounts_.push_back(account);
 }
-std::string Customer::getEmail() const
-{
-    return email_;
+
+void Customer::displayTransactions() const {
+    std::cout << "Transaction history for " << name_ << ":\n";
+    for (const auto& account : accounts_) {
+        std::cout << account->getType() << " Account (ID: " << account->getAccountId() << "):\n";
+        //displayTransactionHistory(account->transactions_);
+    }
 }
-void Customer::addAccount(Account *acc)
-{
-    accounts_.push_back(acc);
+
+const std::vector<std::shared_ptr<Account>>& Customer::getAccounts() const {
+    return accounts_;
 }
-void TransactionHistory::addTransaction(const Transaction &transaction)
-{
+
+void Account::addTransaction(const Transaction& transaction) {
     transactions_.push_back(transaction);
 }
-void TransactionHistory::displayTransactions() const
-{
-    for (const auto &transaction : transactions_)
-    {
-        transaction.displayTransaction();
-    }
+
+std::string Transaction::getCurrentTime() const {
+    std::time_t now = std::time(nullptr);
+    char buf[20];
+    std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M", std::localtime(&now));
+    return std::string(buf);
 }
-void Transaction::displayTransaction() const
-{
-    std::cout << account_ << amount_ << type_ << timestamp_ << std::endl;
+
+Transaction::Transaction(const std::string& accType, double amt, const std::string& tType)
+    : accountType_(accType), amount_(amt), type_(tType), timestamp_(getCurrentTime()) {}
+
+void Transaction::display() const {
+    std::cout << "[" << timestamp_ << "] " << type_ << " of $" 
+              << std::fixed << std::setprecision(2) << amount_ 
+              << " on " << accountType_ << " account\n";
 }
+
 template <typename Container>
-void displayTransactionHistory(const Container &container)
-{
-    for (const auto &transaction : container)
-    {
-        transaction.displayTransaction();
+void displayTransactionHistory(const Container& container) {
+    for (const auto& transaction : container) {
+        transaction.display();
     }
 }
+template void displayTransactionHistory(const std::vector<Transaction>&);

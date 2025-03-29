@@ -4,75 +4,85 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <memory>
+#include <ctime>
 
-enum TransactionType
-{
-    DEPOSIT,
-    WITHDRAWAL
+class Transaction {
+public:
+    Transaction(const std::string& accType, double amt, const std::string& tType);
+    void display() const;
+    double getAmount() const { return amount_; }
+    std::string getType() const { return type_; }
+    std::string getTimestamp() const { return timestamp_; }
+
+private:
+    std::string accountType_;
+    double amount_;
+    std::string type_;
+    std::string timestamp_;
+    std::string getCurrentTime() const;
 };
 
-class Account
-{
+class Account {
 public:
-    virtual void deposit(double amount);
-    virtual void withdraw(double amount);
-    virtual double getBalance() const;
+    Account() = default;
+    virtual ~Account() = default;
+    virtual void deposit(double amount) = 0;
+    virtual void withdraw(double amount) = 0;
+    virtual double getBalance() const = 0;
+    virtual int getAccountId() const = 0;
+    virtual std::string getType() const = 0;
+    void addTransaction(const Transaction& transaction);
 
 protected:
+    std::vector<Transaction> transactions_;
+};
+
+class CheckingAccount : public Account {
+public:
+    CheckingAccount(double initialBalance, int accountId);
+    void deposit(double amount) override;
+    void withdraw(double amount) override;
+    double getBalance() const override;
+    int getAccountId() const override;
+    std::string getType() const override { return "Checking"; }
+
+private:
     double balance_;
+    int accountId_;
 };
 
-class CheckingAccount : public Account
-{
+class SavingsAccount : public Account {
 public:
-    void deposit(double amount) override;  // done
-    void withdraw(double amount) override; // done
-    double getBalance() const override;    // done
+    SavingsAccount(double initialBalance, int accountId);
+    void deposit(double amount) override;
+    void withdraw(double amount) override;
+    double getBalance() const override;
+    int getAccountId() const override;
+    std::string getType() const override { return "Savings"; }
+
+private:
+    double balance_;
+    int accountId_;
+    static constexpr double MIN_BALANCE = 100.0;
 };
 
-class SavingsAccount : public Account
-{
+class Customer {
 public:
-    void deposit(double amount) override;  // done
-    void withdraw(double amount) override; // done
-    double getBalance() const override;    // done
-};
+    Customer(const std::string& name, const std::string& email);
+    void addAccount(std::shared_ptr<Account> account);
+    void displayTransactions() const;
+    const std::vector<std::shared_ptr<Account>>& getAccounts() const;
+    std::string getName() const { return name_; }
+    std::string getEmail() const { return email_; }
 
-class Customer
-{
 private:
     std::string name_;
     std::string email_;
-    std::vector<Account *> accounts_;
-
-public:
-    Customer(const std::string &name, const std::string &email); // done
-    std::string getName() const;                                 // done
-    std::string getEmail() const;                                // done
-    void addAccount(Account *acc);                               // done
+    std::vector<std::shared_ptr<Account>> accounts_;
 };
 
-class Transaction
-{
-protected:
-    TransactionType type_;
-    Account *account_;
-    double amount_;
-    int transactionType;
-    std::string timestamp_;
+template <typename Container>
+void displayTransactionHistory(const Container& container);
 
-public:
-    void displayTransaction() const;
-};
-
-class TransactionHistory
-{
-private:
-    std::vector<Transaction> transactions_;
-
-public:
-    void addTransaction(const Transaction &transaction);
-    void displayTransactions() const;
-};
-
-#endif // HEADER_HPP
+#endif
